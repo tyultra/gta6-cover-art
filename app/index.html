@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sunset City Cover Maker — GTA-style poster maker</title>
+<title>Sunset City Cover Maker</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff2e88'/%3E%3Ctext x='16' y='23' font-family='sans-serif' font-size='18' font-weight='bold' text-anchor='middle' fill='%23ffd23e'%3ESC%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -13,100 +13,101 @@
     <span class="brand-mark">SC</span>
     <div>
       <h1>Sunset City Cover Maker</h1>
-      <p>Build your own Vice-City-style cover art — photos stay on your machine.</p>
+      <p>Turn your photo into GTA-style cover art — offline, in your browser.</p>
     </div>
   </div>
   <div class="top-actions">
-    <button id="btn-demo" type="button" title="Load the built-in sample photos">Load demo photos</button>
-    <button id="btn-clear" type="button">Clear all</button>
+    <button id="loadSample" type="button">Load sample photo</button>
+    <label class="upload">Add photos
+      <input id="fileInput" type="file" accept="image/*" multiple hidden>
+    </label>
   </div>
 </header>
 
 <main class="workspace">
   <section class="stage-wrap">
-    <div class="stage-toolbar">
-      <span id="stage-size-label">Preview 1080 × 1080</span>
-      <label class="ratio-label">Canvas
-        <select id="ratio">
-          <option value="1:1" selected>Square · 1080 × 1080</option>
-          <option value="4:5">Portrait · 1080 × 1350</option>
-          <option value="16:9">Wide · 1920 × 1080</option>
-        </select>
-      </label>
-    </div>
-    <div class="stage" id="stage">
-      <canvas id="cover" width="1080" height="1080"></canvas>
-      <div id="empty-hint" class="empty-hint">
-        <strong>No photo yet</strong>
-        <span>Pick a panel below, then load a photo — or press “Load demo photos”.</span>
+    <div class="poster grade-sunset" id="poster" aria-label="Cover preview">
+      <div class="panels" id="panels"></div>
+      <div class="grade-overlay" id="gradeOverlay"></div>
+      <div class="scrim"></div>
+      <div class="caption" id="caption">
+        <span class="tag" id="tagText">SUNSET CITY</span>
+        <h2 class="title" id="titleText">SUNSET HEIST</h2>
+        <p class="subtitle" id="subtitleText">ONE LAST SCORE</p>
       </div>
     </div>
-    <p class="hint">Drag a photo to move it · scroll to zoom · click a panel to select it · drop an image file onto any panel.</p>
+    <p class="hint">Click a panel to select it, then drag to move the photo. Use the zoom slider to crop tighter.</p>
   </section>
 
-  <aside class="panel">
-    <section class="card">
-      <h2>1 · Layout</h2>
-      <div class="layout-grid" id="layouts"></div>
+  <aside class="controls">
+    <section>
+      <h3>Layout</h3>
+      <div class="row" id="layoutRow">
+        <button type="button" data-layout="hero">Single hero</button>
+        <button type="button" data-layout="split">Two-panel split</button>
+        <button type="button" data-layout="triptych" class="active">Three-panel triptych</button>
+        <button type="button" data-layout="grid">Four-panel grid</button>
+        <button type="button" data-layout="diagonal">Diagonal feature</button>
+      </div>
     </section>
 
-    <section class="card">
-      <h2>2 · Photo <span class="muted" id="panel-label">— panel 1 selected</span></h2>
-      <div class="row">
-        <button id="btn-load" type="button" class="primary">Load photo into panel</button>
-        <button id="btn-fill-all" type="button">Use for all panels</button>
+    <section>
+      <h3>Colour grade</h3>
+      <div class="row" id="gradeRow">
+        <button type="button" data-grade="sunset" class="active">Vice City sunset</button>
+        <button type="button" data-grade="neon">Neon</button>
+        <button type="button" data-grade="dark">Dark</button>
       </div>
-      <div class="row">
-        <button id="btn-remove-photo" type="button">Remove photo</button>
-        <button id="btn-reset-crop" type="button">Reset crop</button>
-      </div>
-      <label class="slider-label">Zoom
-        <input id="zoom" type="range" min="0.5" max="4" step="0.01" value="1">
-        <span id="zoom-val">100%</span>
+    </section>
+
+    <section>
+      <h3>Caption</h3>
+      <label>Title
+        <input id="titleInput" type="text" value="SUNSET HEIST" maxlength="24">
       </label>
-      <input id="file-input" type="file" accept="image/*" hidden>
+      <label>Subtitle
+        <input id="subtitleInput" type="text" value="ONE LAST SCORE" maxlength="40">
+      </label>
+      <label>Tag
+        <input id="tagInput" type="text" value="SUNSET CITY" maxlength="20">
+      </label>
     </section>
 
-    <section class="card">
-      <h2>3 · Caption</h2>
-      <label class="field-label">Title
-        <input id="caption" type="text" value="SUNSET HEIST" maxlength="24" spellcheck="false">
+    <section>
+      <h3>Selected panel</h3>
+      <label>Photo
+        <select id="photoSelect"></select>
       </label>
-      <label class="field-label">Tagline
-        <input id="tagline" type="text" value="ONE LAST SCORE" maxlength="40" spellcheck="false">
+      <label>Zoom
+        <input id="zoomInput" type="range" min="1" max="2.5" step="0.05" value="1">
       </label>
       <div class="row">
-        <label class="field-label grow">Title colour
-          <input id="title-color" type="color" value="#ffd23e">
-        </label>
-        <label class="field-label grow">Outline
-          <input id="outline-color" type="color" value="#101018">
-        </label>
+        <button id="fillAll" type="button">Use this photo in every panel</button>
+        <button id="resetPanel" type="button">Reset panel</button>
       </div>
-      <label class="check"><input id="show-tag" type="checkbox" checked> Show tagline ribbon</label>
     </section>
 
-    <section class="card">
-      <h2>4 · Colour grade</h2>
-      <div class="grade-grid" id="grades"></div>
-    </section>
-
-    <section class="card export-card">
-      <h2>5 · Export PNG</h2>
-      <p class="muted">Rendered on your device, nothing is uploaded.</p>
-      <div class="export-grid">
-        <button type="button" data-export="1080x1080">1080 × 1080</button>
-        <button type="button" data-export="1080x1350">1080 × 1350</button>
-        <button type="button" data-export="1920x1080">1920 × 1080</button>
+    <section>
+      <h3>Export PNG</h3>
+      <div class="row">
+        <button type="button" data-export="1080x1080">1080 &times; 1080</button>
+        <button type="button" data-export="1080x1350">1080 &times; 1350</button>
+        <button type="button" data-export="1920x1080">1920 &times; 1080</button>
       </div>
-      <p id="export-status" class="export-status" aria-live="polite"></p>
+      <label>Preview size
+        <select id="sizeSelect">
+          <option value="1080x1080" selected>Square 1080 &times; 1080</option>
+          <option value="1080x1350">Portrait 1080 &times; 1350</option>
+          <option value="1920x1080">Wide 1920 &times; 1080</option>
+        </select>
+      </label>
     </section>
   </aside>
 </main>
 
-<footer class="foot">
-  <p>Sunset City Cover Maker — an original fan-style poster tool. Not affiliated with Rockstar Games. Photos you load never leave your device.</p>
-  <p class="muted">Display font: Anton, SIL Open Font License 1.1 (see fonts/OFL.txt). Sample photos were generated with an image model for make.fun and are free to use.</p>
+<footer>
+  Sunset City Cover Maker — your photos never leave your machine. An original design;
+  not affiliated with Rockstar Games. The display font Anton is under the SIL Open Font License.
 </footer>
 
 <script src="maker.js"></script>
