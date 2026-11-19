@@ -4,7 +4,7 @@
 [![rank](https://make.fun/badge/gta6-cover-art-01/tyultra/gta6-cover-art/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 [![reward](https://make.fun/badge/gta6-cover-art-01/tyultra/gta6-cover-art/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 
-Sunset City Cover Maker — a GTA-style cover art maker that runs entirely offline in your browser. Load your own photos, arrange them in five multi-panel poster layouts, pick a Vice City sunset, neon or dark colour grade, write a bold caption, and export a share-ready PNG in 1080 × 1080, 1080 × 1350 or 1920 × 1080. Your photos never leave your machine, and the design is original throughout — no Rockstar artwork, logos or fonts.
+Sunset City Cover Maker turns your own photos and a caption into poster-style cover art: a multi-panel poster grid with five layouts, drag-to-crop and zoom for every photo, three colour grades (Vice City sunset, neon nights, after dark), and one-click PNG exports in 1080 × 1080, 1080 × 1350 and 1920 × 1080. It is a static web app that runs fully offline in desktop Chrome — photos are read locally and never uploaded — and everything it ships is original: no Rockstar Games logo, artwork, character or font. The display type is Anton, bundled under the SIL Open Font License.
 
 ## Run it
 
@@ -12,7 +12,7 @@ Sunset City Cover Maker — a GTA-style cover art maker that runs entirely offli
 node serve.ts
 ```
 
-Then open http://localhost:8080 in desktop Chrome. Add photos from your machine, pick a layout and a grade, drag any panel's photo to reposition it, use the zoom slider to crop tighter, edit the caption, and export any of the three post sizes as a PNG.
+Then open http://localhost:8080, add photos, pick a layout and a grade, write a caption, and export.
 
 ---
 

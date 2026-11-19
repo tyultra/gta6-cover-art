@@ -1,260 +1,281 @@
-/* Sunset City Cover Maker — editor styles.
-   Dark workbench around a bright poster stage. All files are local; the
-   only font is Anton, shipped under app/fonts. */
-
 @font-face {
-  font-family: "Anton";
-  src: url("fonts/Anton-Regular.ttf") format("truetype");
+  font-family: 'Anton';
+  src: url('fonts/Anton-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
-:root {
-  --ink: #f4eef7;
-  --ink-dim: #b9a8c4;
-  --panel: #241a2e;
-  --panel-2: #2e2138;
-  --line: #463652;
-  --accent: #ffd23e;
-  --accent-2: #ff2e88;
-  --plum: #1c1026;
-}
-
 * { box-sizing: border-box; }
 
+html, body { margin: 0; padding: 0; }
+
 body {
-  margin: 0;
-  background: #14091d;
-  color: var(--ink);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: #0d0b14;
+  color: #f2eef7;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   min-height: 100vh;
 }
 
+/* ---------- header ---------- */
+
 .topbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 22px;
-  border-bottom: 1px solid var(--line);
-  background: linear-gradient(90deg, #241232, #1a0d26);
   flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 18px;
+  padding: 16px 22px 12px;
+  border-bottom: 1px solid #2a2140;
+  background: linear-gradient(90deg, #1a0b2e, #2b0a33 55%, #160a24);
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand-mark {
-  width: 46px;
-  height: 46px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-family: "Anton", sans-serif;
-  font-size: 20px;
-  letter-spacing: 1px;
-  color: #1c1026;
-  background: linear-gradient(135deg, #ffd23e, #ff7a3d 55%, #ff2e88);
-}
-.brand h1 {
-  margin: 0;
-  font-family: "Anton", sans-serif;
-  font-weight: 400;
-  font-size: 22px;
-  letter-spacing: 1.5px;
+.brand {
+  font-family: 'Anton', sans-serif;
+  font-size: 30px;
+  letter-spacing: 2px;
+  color: #ffd23e;
   text-transform: uppercase;
 }
-.brand p { margin: 2px 0 0; color: var(--ink-dim); font-size: 13px; }
 
-.top-actions { display: flex; gap: 10px; align-items: center; }
+.brand span { color: #ff2e88; }
 
-button, select, input[type="text"] {
-  font: inherit;
-  color: var(--ink);
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px;
+.brand em {
+  font-style: normal;
+  font-size: 15px;
+  letter-spacing: 5px;
+  color: #7df0ff;
+  margin-left: 8px;
 }
-button { cursor: pointer; }
-button:hover { border-color: var(--accent); }
-button.active {
-  background: var(--accent);
-  color: #1c1026;
-  border-color: var(--accent);
-  font-weight: 700;
+
+.tagline { font-size: 13px; color: #b9aecb; }
+
+/* ---------- workspace ---------- */
+
+.workspace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  padding: 20px 22px 28px;
+  align-items: flex-start;
 }
-.upload {
-  display: inline-block;
-  padding: 8px 14px;
+
+.controls {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 260px;
+}
+
+.group {
+  background: #171226;
+  border: 1px solid #2a2140;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.group h2 {
+  margin: 0 0 10px;
+  font-family: 'Anton', sans-serif;
+  font-size: 15px;
+  letter-spacing: 2px;
+  font-weight: 400;
+  color: #ffd23e;
+  text-transform: uppercase;
+}
+
+.hint { font-size: 12px; line-height: 1.5; color: #a99dc0; margin: 8px 0 0; }
+
+.btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn-row.wrap { flex-wrap: wrap; }
+
+.btn-row button {
+  border: 1px solid #4a3a72;
+  background: #241b3a;
+  color: #e8e2f2;
   border-radius: 8px;
-  background: var(--accent);
-  color: #1c1026;
-  font-weight: 700;
+  padding: 7px 10px;
+  font-size: 13px;
   cursor: pointer;
 }
 
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 22px;
-  padding: 20px 22px;
-  max-width: 1240px;
-  margin: 0 auto;
+.btn-row button:hover { border-color: #ff2e88; }
+
+.btn-row button.active {
+  background: #ff2e88;
+  border-color: #ff2e88;
+  color: #fff;
+  font-weight: 700;
 }
 
-.stage-wrap { min-width: 0; }
+.file-btn {
+  display: inline-block;
+  background: #ffd23e;
+  color: #1a0b2e;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
 
-/* The poster: dark plum field, white panel gutters, bold caption. */
+.file-btn:hover { background: #ffe27a; }
+
+.tray { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.tray img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: block;
+}
+
+.tray img:hover { border-color: #7df0ff; }
+.tray img.chosen { border-color: #ffd23e; }
+
+#captionInput {
+  width: 100%;
+  background: #0d0b14;
+  border: 1px solid #4a3a72;
+  color: #fff;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 15px;
+  font-family: 'Anton', sans-serif;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#captionInput:focus { outline: 2px solid #ff2e88; border-color: #ff2e88; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: #b9aecb;
+}
+
+.slider-row input { flex: 1; accent-color: #ff2e88; }
+.slider-row span { min-width: 28px; text-align: right; color: #ffd23e; }
+
+.export-btn { font-weight: 700; }
+.export-btn:hover { background: #ff2e88; border-color: #ff2e88; color: #fff; }
+
+/* ---------- stage & poster ---------- */
+
+.stage {
+  flex: 1 1 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 320px;
+}
+
 .poster {
   position: relative;
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
+  width: min(660px, 100%);
   aspect-ratio: 1 / 1;
-  background: var(--plum);
   overflow: hidden;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-  user-select: none;
+  background: #12081f;
+  border-radius: 6px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .55), 0 0 0 1px #3a2b5c;
   touch-action: none;
 }
-.poster.wide { aspect-ratio: 16 / 9; }
-.poster.tall { aspect-ratio: 4 / 5; }
 
-.panels { position: absolute; inset: 0; }
+.poster[data-ratio="4-5"] { aspect-ratio: 4 / 5; }
+.poster[data-ratio="16-9"] { aspect-ratio: 16 / 9; }
+
 .panel {
   position: absolute;
   overflow: hidden;
-  background: #2a1838;
-  outline: 3px solid #fff;
-  outline-offset: -3px;
+  background: linear-gradient(160deg, #241640, #12081f);
   cursor: grab;
 }
-.panel.selected { outline: 3px solid var(--accent); outline-offset: -3px; z-index: 3; }
+
+.panel:active { cursor: grabbing; }
+
 .panel img {
   position: absolute;
+  left: 50%;
+  top: 50%;
   max-width: none;
+  max-height: none;
+  user-select: none;
+  -webkit-user-drag: none;
   pointer-events: none;
   will-change: transform;
 }
-.panel .empty {
+
+.panel.selected { outline: 3px solid #ffd23e; outline-offset: -3px; z-index: 3; }
+
+.panel-hint {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--ink-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #8d7fb0;
   font-size: 13px;
+  letter-spacing: 1px;
   text-align: center;
   padding: 8px;
+  pointer-events: none;
+  border: 1px dashed #4a3a72;
 }
 
-.grade-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
-.scrim {
+.grade-overlay {
   position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 42%;
-  background: linear-gradient(180deg, transparent, rgba(12, 5, 22, 0.78));
+  inset: 0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 4;
+}
+
+.poster.grade-sunset .panel img {
+  filter: saturate(1.45) sepia(.28) hue-rotate(-12deg) contrast(1.06) brightness(1.02);
+}
+.poster.grade-sunset .grade-overlay {
+  background: linear-gradient(180deg, rgba(255, 110, 40, .14), rgba(255, 45, 120, .22) 68%, rgba(24, 0, 48, .28));
+  mix-blend-mode: overlay;
+}
+
+.poster.grade-neon .panel img {
+  filter: saturate(1.9) contrast(1.18) hue-rotate(8deg) brightness(1.03);
+}
+.poster.grade-neon .grade-overlay {
+  background: linear-gradient(135deg, rgba(255, 0, 140, .20), rgba(0, 230, 255, .18) 60%, rgba(120, 0, 255, .16));
+  mix-blend-mode: soft-light;
+}
+
+.poster.grade-dark .panel img {
+  filter: brightness(.8) contrast(1.12) saturate(.85);
+}
+.poster.grade-dark .grade-overlay {
+  background: radial-gradient(120% 95% at 50% 42%, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, .52));
 }
 
 .caption {
   position: absolute;
-  left: 5%;
-  right: 5%;
-  bottom: 4.5%;
-  z-index: 4;
-  pointer-events: none;
-}
-.caption .tag {
-  display: inline-block;
-  padding: 0.35em 0.9em;
-  border-radius: 999px;
-  background: rgba(8, 4, 16, 0.72);
-  color: #37f4ff;
-  font-weight: 800;
-  letter-spacing: 0.22em;
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-.caption .title {
-  margin: 0;
-  font-family: "Anton", sans-serif;
-  font-weight: 400;
-  text-transform: uppercase;
-  line-height: 0.92;
-  letter-spacing: 0.01em;
-  color: var(--accent);
-  -webkit-text-stroke: 2px #14091d;
-  text-shadow: 0 4px 0 #14091d, 0 8px 22px rgba(0, 0, 0, 0.5);
-}
-.caption .subtitle {
-  margin: 8px 0 0;
-  font-weight: 700;
-  letter-spacing: 0.28em;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  padding: 56px 20px 16px;
+  font-family: 'Anton', sans-serif;
+  font-size: 88px;
+  line-height: .95;
+  letter-spacing: 2px;
   text-transform: uppercase;
   color: #fff;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 3px 0 #ff2e88, 0 6px 22px rgba(0, 0, 0, .65);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, .62) 55%);
+  pointer-events: none;
+  word-break: break-word;
 }
 
-/* Colour grades: filters on the photos, overlays on top. */
-.poster.grade-sunset .panel img { filter: saturate(1.35) contrast(1.08) sepia(0.22); }
-.poster.grade-sunset .grade-overlay {
-  background:
-    radial-gradient(90% 60% at 78% 8%, rgba(255, 205, 90, 0.30), transparent 60%),
-    linear-gradient(180deg, rgba(255, 140, 60, 0.10), rgba(255, 60, 140, 0.16) 55%, rgba(70, 20, 110, 0.22));
-  mix-blend-mode: soft-light;
-}
-.poster.grade-neon .panel img { filter: saturate(1.6) contrast(1.15) hue-rotate(-10deg); }
-.poster.grade-neon .grade-overlay {
-  background: linear-gradient(115deg, rgba(255, 0, 180, 0.16), rgba(0, 220, 255, 0.16) 60%, rgba(120, 0, 255, 0.18));
-  mix-blend-mode: overlay;
-}
-.poster.grade-neon .caption .title { color: #37f4ff; }
-.poster.grade-neon .caption .tag { color: #ff5ce1; }
-.poster.grade-dark .panel img { filter: brightness(0.85) contrast(1.25) saturate(0.9); }
-.poster.grade-dark .grade-overlay {
-  background:
-    radial-gradient(120% 90% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.5)),
-    linear-gradient(180deg, rgba(8, 8, 28, 0.18), rgba(8, 8, 28, 0.30));
-}
-.poster.grade-dark .caption .title { color: #fff; }
-.poster.grade-dark .caption .tag { color: var(--accent); }
-
-.hint { color: var(--ink-dim); font-size: 13px; text-align: center; }
-
-.controls { display: flex; flex-direction: column; gap: 16px; }
-.controls section {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 14px;
-}
-.controls h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-dim); }
-.controls label { display: block; font-size: 13px; margin: 8px 0; }
-.controls label input[type="text"], .controls label select { width: 100%; margin-top: 4px; }
-.controls label input[type="range"] { width: 100%; }
-.row { display: flex; flex-wrap: wrap; gap: 8px; }
-.row button { flex: 1 1 auto; }
-
-footer {
-  padding: 14px 22px 26px;
-  text-align: center;
-  color: var(--ink-dim);
-  font-size: 12px;
-}
-
-/* Cover-shot mode: only the poster, edge to edge, for screenshots. */
-body.cover-shot { background: var(--plum); }
-body.cover-shot .topbar,
-body.cover-shot .controls,
-body.cover-shot .hint,
-body.cover-shot footer { display: none; }
-body.cover-shot .workspace { display: block; padding: 0; margin: 0; max-width: none; }
-body.cover-shot .stage-wrap { width: 100vw; height: 100vh; }
-body.cover-shot .poster { max-width: none; width: 100%; height: 100%; box-shadow: none; }
-body.cover-shot .poster.wide { aspect-ratio: auto; }
-body.cover-shot .poster.tall { aspect-ratio: auto; }
-
-@media (max-width: 860px) {
-  .workspace { grid-template-columns: 1fr; }
-}
+.status { font-size: 13px; color: #a99dc0; margin: 0; text-align: center; }

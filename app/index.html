@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -9,106 +9,64 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">
-    <span class="brand-mark">SC</span>
-    <div>
-      <h1>Sunset City Cover Maker</h1>
-      <p>Turn your photo into GTA-style cover art — offline, in your browser.</p>
-    </div>
-  </div>
-  <div class="top-actions">
-    <button id="loadSample" type="button">Load sample photo</button>
-    <label class="upload">Add photos
-      <input id="fileInput" type="file" accept="image/*" multiple hidden>
-    </label>
-  </div>
+  <div class="brand">SUNSET <span>CITY</span> <em>COVER MAKER</em></div>
+  <div class="tagline">Your photos, poster style. No upload, ever.</div>
 </header>
 
 <main class="workspace">
-  <section class="stage-wrap">
-    <div class="poster grade-sunset" id="poster" aria-label="Cover preview">
-      <div class="panels" id="panels"></div>
-      <div class="grade-overlay" id="gradeOverlay"></div>
-      <div class="scrim"></div>
-      <div class="caption" id="caption">
-        <span class="tag" id="tagText">SUNSET CITY</span>
-        <h2 class="title" id="titleText">SUNSET HEIST</h2>
-        <p class="subtitle" id="subtitleText">ONE LAST SCORE</p>
-      </div>
+  <section class="controls" aria-label="Cover controls">
+    <div class="group">
+      <h2>1 &middot; Photos</h2>
+      <label class="file-btn" for="fileInput">Add photos from this device</label>
+      <input id="fileInput" type="file" accept="image/*" multiple hidden>
+      <p class="hint">Photos are read locally in your browser. Nothing leaves your machine.</p>
+      <div id="tray" class="tray"></div>
+      <p class="hint">Click a thumbnail to put it in the selected panel.</p>
     </div>
-    <p class="hint">Click a panel to select it, then drag to move the photo. Use the zoom slider to crop tighter.</p>
+
+    <div class="group">
+      <h2>2 &middot; Layout</h2>
+      <div id="layoutBar" class="btn-row" role="group" aria-label="Poster layout"></div>
+    </div>
+
+    <div class="group">
+      <h2>3 &middot; Colour grade</h2>
+      <div id="gradeBar" class="btn-row" role="group" aria-label="Colour grade"></div>
+    </div>
+
+    <div class="group">
+      <h2>4 &middot; Caption</h2>
+      <input id="captionInput" type="text" value="SUNSET CITY" maxlength="40" autocomplete="off" spellcheck="false">
+      <label class="slider-row">Size
+        <input id="captionSize" type="range" min="44" max="150" value="88">
+        <span id="captionSizeValue">88</span>
+      </label>
+    </div>
+
+    <div class="group">
+      <h2>5 &middot; Preview size</h2>
+      <div id="sizeBar" class="btn-row" role="group" aria-label="Preview size"></div>
+    </div>
+
+    <div class="group">
+      <h2>6 &middot; Export PNG</h2>
+      <div class="btn-row wrap">
+        <button class="export-btn" data-export="1080x1080" type="button">1080 &times; 1080</button>
+        <button class="export-btn" data-export="1080x1350" type="button">1080 &times; 1350</button>
+        <button class="export-btn" data-export="1920x1080" type="button">1920 &times; 1080</button>
+      </div>
+      <p class="hint">Click a panel to select it. Drag inside a panel to move its photo, scroll to zoom.</p>
+    </div>
   </section>
 
-  <aside class="controls">
-    <section>
-      <h3>Layout</h3>
-      <div class="row" id="layoutRow">
-        <button type="button" data-layout="hero">Single hero</button>
-        <button type="button" data-layout="split">Two-panel split</button>
-        <button type="button" data-layout="triptych" class="active">Three-panel triptych</button>
-        <button type="button" data-layout="grid">Four-panel grid</button>
-        <button type="button" data-layout="diagonal">Diagonal feature</button>
-      </div>
-    </section>
-
-    <section>
-      <h3>Colour grade</h3>
-      <div class="row" id="gradeRow">
-        <button type="button" data-grade="sunset" class="active">Vice City sunset</button>
-        <button type="button" data-grade="neon">Neon</button>
-        <button type="button" data-grade="dark">Dark</button>
-      </div>
-    </section>
-
-    <section>
-      <h3>Caption</h3>
-      <label>Title
-        <input id="titleInput" type="text" value="SUNSET HEIST" maxlength="24">
-      </label>
-      <label>Subtitle
-        <input id="subtitleInput" type="text" value="ONE LAST SCORE" maxlength="40">
-      </label>
-      <label>Tag
-        <input id="tagInput" type="text" value="SUNSET CITY" maxlength="20">
-      </label>
-    </section>
-
-    <section>
-      <h3>Selected panel</h3>
-      <label>Photo
-        <select id="photoSelect"></select>
-      </label>
-      <label>Zoom
-        <input id="zoomInput" type="range" min="1" max="2.5" step="0.05" value="1">
-      </label>
-      <div class="row">
-        <button id="fillAll" type="button">Use this photo in every panel</button>
-        <button id="resetPanel" type="button">Reset panel</button>
-      </div>
-    </section>
-
-    <section>
-      <h3>Export PNG</h3>
-      <div class="row">
-        <button type="button" data-export="1080x1080">1080 &times; 1080</button>
-        <button type="button" data-export="1080x1350">1080 &times; 1350</button>
-        <button type="button" data-export="1920x1080">1920 &times; 1080</button>
-      </div>
-      <label>Preview size
-        <select id="sizeSelect">
-          <option value="1080x1080" selected>Square 1080 &times; 1080</option>
-          <option value="1080x1350">Portrait 1080 &times; 1350</option>
-          <option value="1920x1080">Wide 1920 &times; 1080</option>
-        </select>
-      </label>
-    </section>
-  </aside>
+  <section class="stage" aria-label="Live preview">
+    <div id="poster" class="poster grade-sunset" data-layout="hero" data-ratio="1-1">
+      <div id="gradeOverlay" class="grade-overlay"></div>
+      <div id="caption" class="caption">SUNSET CITY</div>
+    </div>
+    <p id="status" class="status">Add a photo to begin.</p>
+  </section>
 </main>
-
-<footer>
-  Sunset City Cover Maker — your photos never leave your machine. An original design;
-  not affiliated with Rockstar Games. The display font Anton is under the SIL Open Font License.
-</footer>
 
 <script src="maker.js"></script>
 </body>

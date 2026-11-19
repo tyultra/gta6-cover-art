@@ -1,584 +1,500 @@
 'use strict';
-/* Sunset City Cover Maker.
-   A static, offline cover-art maker: load your own photos, arrange them in
-   a multi-panel poster, grade the colours, write a bold caption, export a
-   share-ready PNG. Photos never leave the machine. */
 
-const SAMPLE_PHOTOS = [
-  { name: 'Pier', url: 'samples/pier.jpg' },
-  { name: 'Boulevard', url: 'samples/boulevard.jpg' },
-];
+/* Sunset City Cover Maker — turns the user's own photos and a caption into
+   a multi-panel poster-style cover, exported as a PNG. Everything runs
+   offline in the browser: photos are read locally and never uploaded. */
 
-/* Layouts are fractions of the poster. A panel is either a rectangle
-   (x, y, w, h) or a polygon (poly of [fx, fy] corners). */
 const LAYOUTS = {
   hero: {
     label: 'Single hero',
-    panels: [{ x: 0, y: 0, w: 1, h: 1 }],
+    panels: [[0, 0, 1, 1]],
   },
   split: {
     label: 'Two-panel split',
-    panels: [
-      { x: 0, y: 0, w: 0.54, h: 1 },
-      { x: 0.54, y: 0, w: 0.46, h: 1 },
-    ],
+    panels: [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]],
   },
   triptych: {
     label: 'Three-panel triptych',
-    panels: [
-      { x: 0, y: 0, w: 0.3, h: 1 },
-      { x: 0.3, y: 0, w: 0.4, h: 1 },
-      { x: 0.7, y: 0, w: 0.3, h: 1 },
-    ],
+    panels: [[0, 0, 1 / 3, 1], [1 / 3, 0, 1 / 3, 1], [2 / 3, 0, 1 / 3, 1]],
   },
   grid: {
     label: 'Four-panel grid',
-    panels: [
-      { x: 0, y: 0, w: 0.5, h: 0.5 },
-      { x: 0.5, y: 0, w: 0.5, h: 0.5 },
-      { x: 0, y: 0.5, w: 0.5, h: 0.5 },
-      { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
-    ],
+    panels: [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]],
   },
   diagonal: {
     label: 'Diagonal feature',
-    panels: [
-      { poly: [[0, 0], [0.66, 0], [0.42, 1], [0, 1]] },
-      { poly: [[0.66, 0], [1, 0], [1, 0.5], [0.54, 0.5]] },
-      { poly: [[0.54, 0.5], [1, 0.5], [1, 1], [0.42, 1]] },
-    ],
+    panels: [[0, 0, 0.62, 0.68], [0.62, 0, 0.38, 0.42], [0.62, 0.42, 0.38, 0.26], [0, 0.68, 1, 0.32]],
   },
 };
 
-/* Colour grades: a CSS filter for the photos plus a canvas overlay pass. */
 const GRADES = {
   sunset: {
     label: 'Vice City sunset',
-    canvasFilter: 'saturate(1.35) contrast(1.08) sepia(0.22)',
-    titleColor: '#ffd23e',
+    filter: 'saturate(1.45) sepia(0.28) hue-rotate(-12deg) contrast(1.06) brightness(1.02)',
   },
   neon: {
-    label: 'Neon',
-    canvasFilter: 'saturate(1.6) contrast(1.15) hue-rotate(-10deg)',
-    titleColor: '#37f4ff',
+    label: 'Neon nights',
+    filter: 'saturate(1.9) contrast(1.18) hue-rotate(8deg) brightness(1.03)',
   },
   dark: {
-    label: 'Dark',
-    canvasFilter: 'brightness(0.85) contrast(1.25) saturate(0.9)',
-    titleColor: '#ffffff',
+    label: 'After dark',
+    filter: 'brightness(0.8) contrast(1.12) saturate(0.85)',
   },
 };
 
-const state = {
-  photos: [], // { name, img, url }
-  panels: [], // { photo, zoom, dxF, dyF } — one per layout panel
-  layout: 'triptych',
-  grade: 'sunset',
-  title: 'SUNSET HEIST',
-  subtitle: 'ONE LAST SCORE',
-  tag: 'SUNSET CITY',
-  previewSize: '1080x1080',
-  selected: 0,
+const PREVIEW_SIZES = {
+  '1-1': 'Square 1:1',
+  '4-5': 'Portrait 4:5',
+  '16-9': 'Wide 16:9',
 };
 
-const posterEl = document.getElementById('poster');
-const panelsEl = document.getElementById('panels');
-const titleEl = document.getElementById('titleText');
-const subtitleEl = document.getElementById('subtitleText');
-const tagEl = document.getElementById('tagText');
+const EXPORT_SIZES = ['1080x1080', '1080x1350', '1920x1080'];
 
-/* ---------- geometry (shared by the live preview and the export) ---------- */
+const state = {
+  photos: [], // { name, url, img, w, h }
+  panels: [], // { photo, scale, dx, dy } per layout slot
+  layout: 'hero',
+  grade: 'sunset',
+  caption: 'SUNSET CITY',
+  captionSize: 88,
+  preview: '1-1',
+  selected: 0,
+  chosenPhoto: -1,
+};
 
-function panelGeom(def, W, H) {
-  if (def.poly) {
-    const pts = def.poly.map(([fx, fy]) => [fx * W, fy * H]);
-    const xs = pts.map((p) => p[0]);
-    const ys = pts.map((p) => p[1]);
-    const x = Math.min(...xs);
-    const y = Math.min(...ys);
-    const w = Math.max(...xs) - x;
-    const h = Math.max(...ys) - y;
-    const clip = pts
-      .map(([px, py]) => `${(((px - x) / w) * 100).toFixed(2)}% ${(((py - y) / h) * 100).toFixed(2)}%`)
-      .join(', ');
-    return { x, y, w, h, clip, pts };
-  }
-  return { x: def.x * W, y: def.y * H, w: def.w * W, h: def.h * H, clip: null, pts: null };
+const poster = document.getElementById('poster');
+const captionEl = document.getElementById('caption');
+const statusEl = document.getElementById('status');
+const trayEl = document.getElementById('tray');
+const fileInput = document.getElementById('fileInput');
+const captionInput = document.getElementById('captionInput');
+const captionSizeInput = document.getElementById('captionSize');
+const captionSizeValue = document.getElementById('captionSizeValue');
+
+function setStatus(text) {
+  statusEl.textContent = text;
 }
 
-/* Cover-fit placement of an image inside a panel rect, with zoom and pan.
-   Offsets are fractions of the panel size, so they survive resizing. */
-function imagePlacement(rect, img, zoom, dxF, dyF) {
-  const base = Math.max(rect.w / img.naturalWidth, rect.h / img.naturalHeight);
-  const w = img.naturalWidth * base * zoom;
-  const h = img.naturalHeight * base * zoom;
-  return {
-    w,
-    h,
-    x: rect.x + (rect.w - w) / 2 + dxF * rect.w,
-    y: rect.y + (rect.h - h) / 2 + dyF * rect.h,
-  };
+function layoutRects() {
+  return LAYOUTS[state.layout].panels;
 }
 
-function ensurePanels() {
-  const defs = LAYOUTS[state.layout].panels;
-  const firstPhoto = state.panels[0] ? state.panels[0].photo : 0;
-  while (state.panels.length < defs.length) {
-    state.panels.push({ photo: firstPhoto, zoom: 1, dxF: 0, dyF: 0 });
-  }
-  state.panels.length = defs.length;
-  if (state.selected >= defs.length) state.selected = 0;
+/* ---------- poster construction ---------- */
+
+function buildPoster() {
+  poster.querySelectorAll('.panel').forEach((el) => el.remove());
+  const overlay = document.getElementById('gradeOverlay');
+  const rects = layoutRects();
+  const old = state.panels;
+  state.panels = rects.map((_, i) => old[i] || { photo: -1, scale: 1, dx: 0, dy: 0 });
+  if (state.selected >= rects.length) state.selected = rects.length - 1;
+
+  rects.forEach((rect, i) => {
+    const panel = document.createElement('div');
+    panel.className = 'panel' + (i === state.selected ? ' selected' : '');
+    panel.dataset.index = String(i);
+    panel.style.left = rect[0] * 100 + '%';
+    panel.style.top = rect[1] * 100 + '%';
+    panel.style.width = rect[2] * 100 + '%';
+    panel.style.height = rect[3] * 100 + '%';
+    attachPanelGestures(panel, i);
+    poster.insertBefore(panel, overlay);
+    fillPanel(i);
+  });
 }
 
-/* ---------- live preview ---------- */
-
-function renderPoster() {
-  ensurePanels();
-  const W = posterEl.clientWidth || 640;
-  const H = posterEl.clientHeight || 640;
-  posterEl.className = `poster grade-${state.grade}` +
-    (state.previewSize === '1920x1080' ? ' wide' : state.previewSize === '1080x1350' ? ' tall' : '');
-  if (document.body.classList.contains('cover-shot')) {
-    posterEl.className = `poster grade-${state.grade}`;
+function fillPanel(i) {
+  const panel = poster.querySelector('.panel[data-index="' + i + '"]');
+  if (!panel) return;
+  panel.querySelectorAll('img, .panel-hint').forEach((el) => el.remove());
+  const slot = state.panels[i];
+  if (slot.photo < 0 || !state.photos[slot.photo]) {
+    const hint = document.createElement('div');
+    hint.className = 'panel-hint';
+    hint.textContent = '+ PHOTO';
+    panel.appendChild(hint);
+    return;
   }
-
-  // Caption text and sizes scale with the poster.
-  tagEl.textContent = state.tag.toUpperCase();
-  titleEl.textContent = state.title.toUpperCase();
-  subtitleEl.textContent = state.subtitle.toUpperCase();
-  tagEl.style.fontSize = `${Math.max(11, Math.round(W * 0.024))}px`;
-  titleEl.style.fontSize = `${Math.max(30, Math.round(W * 0.105))}px`;
-  subtitleEl.style.fontSize = `${Math.max(11, Math.round(W * 0.028))}px`;
-
-  panelsEl.innerHTML = '';
-  const defs = LAYOUTS[state.layout].panels;
-  defs.forEach((def, i) => {
-    const geom = panelGeom(def, W, H);
-    const div = document.createElement('div');
-    div.className = 'panel' + (i === state.selected ? ' selected' : '');
-    div.dataset.index = String(i);
-    div.style.left = `${geom.x}px`;
-    div.style.top = `${geom.y}px`;
-    div.style.width = `${geom.w}px`;
-    div.style.height = `${geom.h}px`;
-    if (geom.clip) div.style.clipPath = `polygon(${geom.clip})`;
-    const p = state.panels[i];
-    const photo = state.photos[p.photo];
-    if (photo) {
-      const pl = imagePlacement(geom, photo.img, p.zoom, p.dxF, p.dyF);
-      const img = document.createElement('img');
-      img.src = photo.url;
-      img.alt = photo.name;
-      img.style.left = `${pl.x - geom.x}px`;
-      img.style.top = `${pl.y - geom.y}px`;
-      img.style.width = `${pl.w}px`;
-      img.style.height = `${pl.h}px`;
-      div.appendChild(img);
-    } else {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.textContent = 'Add a photo to fill this panel';
-      div.appendChild(empty);
-    }
-    panelsEl.appendChild(div);
-  });
-  renderControls();
+  const photo = state.photos[slot.photo];
+  const img = document.createElement('img');
+  img.src = photo.url;
+  img.alt = photo.name;
+  img.draggable = false;
+  panel.appendChild(img);
+  renderPanel(i);
 }
 
-function renderControls() {
-  document.querySelectorAll('#layoutRow button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.layout === state.layout);
+function renderPanel(i) {
+  const panel = poster.querySelector('.panel[data-index="' + i + '"]');
+  const img = panel && panel.querySelector('img');
+  if (!panel || !img) return;
+  const slot = state.panels[i];
+  const photo = state.photos[slot.photo];
+  if (!photo) return;
+  const pw = panel.clientWidth;
+  const ph = panel.clientHeight;
+  if (!pw || !ph) return;
+  const fit = Math.max(pw / photo.w, ph / photo.h);
+  const w = photo.w * fit * slot.scale;
+  const h = photo.h * fit * slot.scale;
+  const maxDx = Math.max(0, (w - pw) / 2);
+  const maxDy = Math.max(0, (h - ph) / 2);
+  slot.dx = Math.max(-maxDx, Math.min(maxDx, slot.dx));
+  slot.dy = Math.max(-maxDy, Math.min(maxDy, slot.dy));
+  img.style.width = w + 'px';
+  img.style.height = h + 'px';
+  img.style.transform = 'translate(-50%, -50%) translate(' + slot.dx + 'px,' + slot.dy + 'px)';
+}
+
+function renderAllPanels() {
+  state.panels.forEach((_, i) => renderPanel(i));
+}
+
+function selectPanel(i) {
+  state.selected = i;
+  poster.querySelectorAll('.panel').forEach((el) => {
+    el.classList.toggle('selected', Number(el.dataset.index) === i);
   });
-  document.querySelectorAll('#gradeRow button').forEach((b) => {
-    b.classList.toggle('active', b.dataset.grade === state.grade);
+}
+
+/* ---------- panel gestures: drag to pan, wheel to zoom ---------- */
+
+function attachPanelGestures(panel, i) {
+  let drag = null;
+  panel.addEventListener('pointerdown', (event) => {
+    selectPanel(i);
+    drag = {
+      x: event.clientX,
+      y: event.clientY,
+      dx: state.panels[i].dx,
+      dy: state.panels[i].dy,
+      moved: false,
+    };
+    panel.setPointerCapture(event.pointerId);
   });
-  const select = document.getElementById('photoSelect');
-  const current = state.panels[state.selected] ? state.panels[state.selected].photo : 0;
-  select.innerHTML = '';
-  state.photos.forEach((photo, i) => {
-    const opt = document.createElement('option');
-    opt.value = String(i);
-    opt.textContent = photo.name;
-    select.appendChild(opt);
+  panel.addEventListener('pointermove', (event) => {
+    if (!drag) return;
+    const nx = drag.dx + (event.clientX - drag.x);
+    const ny = drag.dy + (event.clientY - drag.y);
+    if (Math.abs(event.clientX - drag.x) + Math.abs(event.clientY - drag.y) > 4) drag.moved = true;
+    state.panels[i].dx = nx;
+    state.panels[i].dy = ny;
+    renderPanel(i);
   });
-  if (state.photos.length === 0) {
-    const opt = document.createElement('option');
-    opt.textContent = 'No photos yet';
-    select.appendChild(opt);
-  }
-  select.value = String(current);
-  const zoom = document.getElementById('zoomInput');
-  zoom.value = String(state.panels[state.selected] ? state.panels[state.selected].zoom : 1);
+  panel.addEventListener('pointerup', () => {
+    drag = null;
+  });
+  panel.addEventListener('pointercancel', () => {
+    drag = null;
+  });
+  panel.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    selectPanel(i);
+    const slot = state.panels[i];
+    const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
+    slot.scale = Math.max(1, Math.min(4, slot.scale * factor));
+    renderPanel(i);
+  }, { passive: false });
 }
 
 /* ---------- photos ---------- */
 
-function addPhoto(name, url) {
+function addPhoto(photo) {
+  state.photos.push(photo);
+  const thumb = document.createElement('img');
+  thumb.src = photo.url;
+  thumb.alt = photo.name;
+  thumb.title = photo.name;
+  const index = state.photos.length - 1;
+  thumb.addEventListener('click', () => {
+    assignPhoto(state.selected, index);
+    trayEl.querySelectorAll('img').forEach((el) => el.classList.remove('chosen'));
+    thumb.classList.add('chosen');
+    state.chosenPhoto = index;
+  });
+  trayEl.appendChild(thumb);
+  const firstEmpty = state.panels.findIndex((slot) => slot.photo < 0);
+  if (firstEmpty >= 0) assignPhoto(firstEmpty, index);
+  setStatus('Photo added: ' + photo.name + '. Click a thumbnail to place it in the selected panel.');
+}
+
+function assignPhoto(panelIndex, photoIndex) {
+  const slot = state.panels[panelIndex];
+  if (!slot || !state.photos[photoIndex]) return;
+  slot.photo = photoIndex;
+  slot.scale = 1;
+  slot.dx = 0;
+  slot.dy = 0;
+  fillPanel(panelIndex);
+}
+
+function loadImageFile(file) {
   return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
-      const existing = state.photos.findIndex((p) => p.url === url);
-      if (existing >= 0) {
-        resolve(existing);
-        return;
-      }
-      state.photos.push({ name, img, url });
-      const index = state.photos.length - 1;
-      if (state.photos.length === 1) {
-        state.panels.forEach((p) => { p.photo = index; });
-      }
-      resolve(index);
-    };
-    img.onerror = () => reject(new Error(`Could not load ${name}`));
+    img.onload = () => resolve({ name: file.name, url, img, w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => reject(new Error('could not read ' + file.name));
     img.src = url;
   });
 }
 
-async function loadSamplePhoto(which) {
-  const sample = SAMPLE_PHOTOS.find((s) => s.name.toLowerCase() === String(which).toLowerCase()) || SAMPLE_PHOTOS[0];
-  const index = await addPhoto(sample.name, sample.url);
-  state.panels.forEach((p) => { if (state.photos.length <= 2) p.photo = index; });
-  renderPoster();
-  return index;
+function loadSamplePhoto(path, name) {
+  return fetch(path)
+    .then((response) => {
+      if (!response.ok) throw new Error('sample not found: ' + path);
+      return response.blob();
+    })
+    .then((blob) => {
+      const url = URL.createObjectURL(blob);
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ name, url, img, w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => reject(new Error('could not read ' + path));
+        img.src = url;
+      });
+    });
 }
 
-function setLayout(name) {
-  if (!LAYOUTS[name]) return;
-  state.layout = name;
-  ensurePanels();
-  renderPoster();
+fileInput.addEventListener('change', async () => {
+  const files = Array.from(fileInput.files || []).filter((file) => file.type.indexOf('image/') === 0);
+  for (const file of files) {
+    try {
+      addPhoto(await loadImageFile(file));
+    } catch (error) {
+      setStatus('Could not read ' + file.name + '.');
+    }
+  }
+  fileInput.value = '';
+});
+
+/* ---------- controls ---------- */
+
+function buildButtonBar(elementId, items, current, onPick) {
+  const bar = document.getElementById(elementId);
+  bar.innerHTML = '';
+  Object.keys(items).forEach((key) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = items[key];
+    button.dataset.key = key;
+    if (key === current) button.classList.add('active');
+    button.addEventListener('click', () => {
+      bar.querySelectorAll('button').forEach((el) => el.classList.remove('active'));
+      button.classList.add('active');
+      onPick(key);
+    });
+    bar.appendChild(button);
+  });
 }
 
-function setGrade(name) {
-  if (!GRADES[name]) return;
-  state.grade = name;
-  renderPoster();
+function applyLayout(key) {
+  state.layout = key;
+  poster.dataset.layout = key;
+  buildPoster();
+  setStatus('Layout: ' + LAYOUTS[key].label + '.');
 }
 
-function setPreviewSize(size) {
-  state.previewSize = size;
-  const sel = document.getElementById('sizeSelect');
-  if (sel) sel.value = size;
-  renderPoster();
+function applyGrade(key) {
+  state.grade = key;
+  poster.classList.remove('grade-sunset', 'grade-neon', 'grade-dark');
+  poster.classList.add('grade-' + key);
+  setStatus('Grade: ' + GRADES[key].label + '.');
+}
+
+function applyPreviewSize(key) {
+  state.preview = key;
+  poster.dataset.ratio = key;
+  requestAnimationFrame(renderAllPanels);
+}
+
+captionInput.addEventListener('input', () => {
+  state.caption = captionInput.value;
+  captionEl.textContent = state.caption;
+});
+
+captionSizeInput.addEventListener('input', () => {
+  state.captionSize = Number(captionSizeInput.value);
+  captionSizeValue.textContent = String(state.captionSize);
+  captionEl.style.fontSize = state.captionSize + 'px';
+});
+
+new ResizeObserver(renderAllPanels).observe(poster);
+
+/* ---------- grade overlay on canvas ---------- */
+
+function drawGradeOverlay(ctx, w, h, grade) {
+  ctx.save();
+  if (grade === 'sunset') {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(255,110,40,0.14)');
+    g.addColorStop(0.68, 'rgba(255,45,120,0.22)');
+    g.addColorStop(1, 'rgba(24,0,48,0.28)');
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  } else if (grade === 'neon') {
+    const g = ctx.createLinearGradient(0, 0, w, h);
+    g.addColorStop(0, 'rgba(255,0,140,0.20)');
+    g.addColorStop(0.6, 'rgba(0,230,255,0.18)');
+    g.addColorStop(1, 'rgba(120,0,255,0.16)');
+    ctx.globalCompositeOperation = 'soft-light';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  } else {
+    const g = ctx.createRadialGradient(w / 2, h * 0.42, Math.min(w, h) * 0.3, w / 2, h * 0.42, Math.max(w, h) * 0.75);
+    g.addColorStop(0.52, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.52)');
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.restore();
 }
 
 /* ---------- export ---------- */
 
-function drawGradeOverlay(ctx, W, H) {
-  if (state.grade === 'sunset') {
-    ctx.save();
-    ctx.globalCompositeOperation = 'soft-light';
-    const glow = ctx.createRadialGradient(W * 0.78, H * 0.08, 0, W * 0.78, H * 0.08, W * 0.55);
-    glow.addColorStop(0, 'rgba(255,205,90,0.55)');
-    glow.addColorStop(1, 'rgba(255,205,90,0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
-    const wash = ctx.createLinearGradient(0, 0, 0, H);
-    wash.addColorStop(0, 'rgba(255,140,60,0.20)');
-    wash.addColorStop(0.55, 'rgba(255,60,140,0.30)');
-    wash.addColorStop(1, 'rgba(70,20,110,0.40)');
-    ctx.fillStyle = wash;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  } else if (state.grade === 'neon') {
-    ctx.save();
-    ctx.globalCompositeOperation = 'overlay';
-    const wash = ctx.createLinearGradient(0, 0, W, H);
-    wash.addColorStop(0, 'rgba(255,0,180,0.30)');
-    wash.addColorStop(0.6, 'rgba(0,220,255,0.30)');
-    wash.addColorStop(1, 'rgba(120,0,255,0.35)');
-    ctx.fillStyle = wash;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
-  } else {
-    const wash = ctx.createLinearGradient(0, 0, 0, H);
-    wash.addColorStop(0, 'rgba(8,8,28,0.18)');
-    wash.addColorStop(1, 'rgba(8,8,28,0.30)');
-    ctx.fillStyle = wash;
-    ctx.fillRect(0, 0, W, H);
-    const vig = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.35, W / 2, H * 0.45, Math.max(W, H) * 0.75);
-    vig.addColorStop(0, 'rgba(0,0,0,0)');
-    vig.addColorStop(1, 'rgba(0,0,0,0.5)');
-    ctx.fillStyle = vig;
-    ctx.fillRect(0, 0, W, H);
+async function exportCover(sizeLabel) {
+  const parts = sizeLabel.split('x');
+  const W = Number(parts[0]);
+  const H = Number(parts[1]);
+  if (!W || !H) throw new Error('bad export size: ' + sizeLabel);
+  try {
+    await document.fonts.load('400 80px Anton');
+    await document.fonts.ready;
+  } catch (error) {
+    /* The caption falls back to a system sans-serif if the font is not ready. */
   }
-}
 
-function wrapTitleLines(ctx, text, maxWidth) {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = '';
-  for (const word of words) {
-    const trial = line ? `${line} ${word}` : word;
-    if (ctx.measureText(trial).width <= maxWidth || !line) {
-      line = trial;
-    } else {
-      lines.push(line);
-      line = word;
-    }
-  }
-  if (line) lines.push(line);
-  return lines.slice(0, 2);
-}
-
-function drawCaption(ctx, W, H) {
-  const scrim = ctx.createLinearGradient(0, H * 0.58, 0, H);
-  scrim.addColorStop(0, 'rgba(12,5,22,0)');
-  scrim.addColorStop(1, 'rgba(12,5,22,0.78)');
-  ctx.fillStyle = scrim;
-  ctx.fillRect(0, H * 0.58, W, H * 0.42);
-
-  const pad = W * 0.05;
-  const titleSize = Math.round(W * 0.105);
-  const subSize = Math.round(W * 0.028);
-  const tagSize = Math.round(W * 0.026);
-  const grade = GRADES[state.grade];
-
-  // Subtitle sits at the bottom.
-  ctx.textBaseline = 'alphabetic';
-  ctx.textAlign = 'left';
-  ctx.font = `700 ${subSize}px "Segoe UI", system-ui, sans-serif`;
-  try { ctx.letterSpacing = `${Math.round(subSize * 0.28)}px`; } catch (e) { /* older canvas */ }
-  ctx.fillStyle = '#ffffff';
-  const subY = H * 0.955;
-  ctx.fillText(state.subtitle.toUpperCase(), pad, subY);
-  try { ctx.letterSpacing = '0px'; } catch (e) { /* older canvas */ }
-
-  // Title above it, wrapped to at most two lines.
-  ctx.font = `${titleSize}px Anton, sans-serif`;
-  const lines = wrapTitleLines(ctx, state.title.toUpperCase(), W * 0.9);
-  const lineHeight = Math.round(titleSize * 0.95);
-  let titleBottom = subY - subSize - Math.round(W * 0.012);
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#14091d';
-  ctx.lineWidth = Math.max(2, Math.round(titleSize * 0.055));
-  ctx.fillStyle = grade.titleColor;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const y = titleBottom - (lines.length - 1 - i) * lineHeight;
-    ctx.strokeText(lines[i], pad, y);
-    ctx.fillText(lines[i], pad, y);
-  }
-  const titleTop = titleBottom - (lines.length - 1) * lineHeight - titleSize;
-
-  // Tag pill above the title.
-  ctx.font = `800 ${tagSize}px "Segoe UI", system-ui, sans-serif`;
-  try { ctx.letterSpacing = `${Math.round(tagSize * 0.22)}px`; } catch (e) { /* older canvas */ }
-  const tagText = state.tag.toUpperCase();
-  const tagWidth = ctx.measureText(tagText).width + tagSize * 1.8;
-  const tagHeight = tagSize * 2.1;
-  const tagY = titleTop - tagHeight - Math.round(W * 0.012);
-  ctx.fillStyle = 'rgba(8,4,16,0.72)';
-  pillPath(ctx, pad, tagY, tagWidth, tagHeight, tagHeight / 2);
-  ctx.fill();
-  ctx.fillStyle = state.grade === 'neon' ? '#ff5ce1' : state.grade === 'dark' ? '#ffd23e' : '#37f4ff';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(tagText, pad + tagSize * 0.9, tagY + tagHeight / 2 + 1);
-  ctx.textBaseline = 'alphabetic';
-  try { ctx.letterSpacing = '0px'; } catch (e) { /* older canvas */ }
-}
-
-function pillPath(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-function drawPoster(ctx, W, H) {
-  ctx.fillStyle = '#1c1026';
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#12081f';
   ctx.fillRect(0, 0, W, H);
-  const defs = LAYOUTS[state.layout].panels;
-  defs.forEach((def, i) => {
-    const geom = panelGeom(def, W, H);
-    const p = state.panels[i];
-    const photo = state.photos[p.photo];
+
+  const posterRect = poster.getBoundingClientRect();
+  const scaleX = W / posterRect.width;
+  const scaleY = H / posterRect.height;
+  const rects = layoutRects();
+
+  rects.forEach((rect, i) => {
+    const x = rect[0] * W;
+    const y = rect[1] * H;
+    const w = rect[2] * W;
+    const h = rect[3] * H;
     ctx.save();
     ctx.beginPath();
-    if (geom.pts) {
-      ctx.moveTo(geom.pts[0][0], geom.pts[0][1]);
-      for (let k = 1; k < geom.pts.length; k++) ctx.lineTo(geom.pts[k][0], geom.pts[k][1]);
-      ctx.closePath();
-    } else {
-      ctx.rect(geom.x, geom.y, geom.w, geom.h);
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-    ctx.lineWidth = Math.max(2, Math.round(W * 0.003));
-    ctx.stroke();
+    ctx.rect(x, y, w, h);
     ctx.clip();
+    const slot = state.panels[i];
+    const photo = slot && slot.photo >= 0 ? state.photos[slot.photo] : null;
     if (photo) {
-      ctx.filter = GRADES[state.grade].canvasFilter;
-      const pl = imagePlacement(geom, photo.img, p.zoom, p.dxF, p.dyF);
-      ctx.drawImage(photo.img, pl.x, pl.y, pl.w, pl.h);
+      ctx.filter = GRADES[state.grade].filter;
+      const fit = Math.max(w / photo.w, h / photo.h);
+      const dw = photo.w * fit * slot.scale;
+      const dh = photo.h * fit * slot.scale;
+      const dx = x + (w - dw) / 2 + slot.dx * scaleX;
+      const dy = y + (h - dh) / 2 + slot.dy * scaleY;
+      ctx.drawImage(photo.img, dx, dy, dw, dh);
       ctx.filter = 'none';
     } else {
-      ctx.fillStyle = '#2a1838';
-      ctx.fillRect(geom.x, geom.y, geom.w, geom.h);
+      const g = ctx.createLinearGradient(x, y, x + w, y + h);
+      g.addColorStop(0, '#241640');
+      g.addColorStop(1, '#12081f');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w, h);
     }
     ctx.restore();
   });
-  drawGradeOverlay(ctx, W, H);
-  drawCaption(ctx, W, H);
-}
 
-async function exportPNG(w, h) {
-  await document.fonts.ready;
-  const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
-  drawPoster(canvas.getContext('2d'), w, h);
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-}
+  drawGradeOverlay(ctx, W, H, state.grade);
 
-function downloadBlob(blob, filename) {
+  const text = state.caption.trim();
+  if (text) {
+    const pad = Math.round(W * 0.03);
+    let size = Math.round(state.captionSize * scaleX);
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    const setFont = (px) => {
+      ctx.font = '400 ' + px + 'px Anton, sans-serif';
+    };
+    setFont(size);
+    const maxWidth = W - pad * 2;
+    while (size > 24 && ctx.measureText(text).width > maxWidth) {
+      size = Math.round(size * 0.92);
+      setFont(size);
+    }
+    const bandTop = H - Math.round(size * 2.1);
+    const band = ctx.createLinearGradient(0, bandTop, 0, H);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(0.55, 'rgba(0,0,0,0.62)');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, bandTop, W, H - bandTop);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(2, Math.round(size / 14));
+    ctx.strokeStyle = '#ff2e88';
+    ctx.shadowColor = 'rgba(0,0,0,0.65)';
+    ctx.shadowBlur = Math.round(size / 4);
+    ctx.shadowOffsetY = Math.round(size / 22);
+    ctx.strokeText(text, pad, H - Math.round(size * 0.32));
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(text, pad, H - Math.round(size * 0.32));
+  }
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'sunset-city-cover-' + W + 'x' + H + '.png';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+  setStatus('Exported ' + W + ' x ' + H + ' PNG.');
+  return { width: W, height: H, bytes: blob.size };
 }
 
-/* ---------- wiring ---------- */
-
-function wireControls() {
-  document.querySelectorAll('#layoutRow button').forEach((b) => {
-    b.addEventListener('click', () => setLayout(b.dataset.layout));
-  });
-  document.querySelectorAll('#gradeRow button').forEach((b) => {
-    b.addEventListener('click', () => setGrade(b.dataset.grade));
-  });
-  document.querySelectorAll('[data-export]').forEach((b) => {
-    b.addEventListener('click', async () => {
-      const [w, h] = b.dataset.export.split('x').map(Number);
-      const blob = await exportPNG(w, h);
-      downloadBlob(blob, `sunset-city-cover-${w}x${h}.png`);
+document.querySelectorAll('.export-btn').forEach((button) => {
+  button.addEventListener('click', () => {
+    exportCover(button.dataset.export).catch(() => {
+      setStatus('Export failed. Try loading a photo first.');
     });
   });
-  document.getElementById('titleInput').addEventListener('input', (e) => {
-    state.title = e.target.value || 'UNTITLED';
-    renderPoster();
-  });
-  document.getElementById('subtitleInput').addEventListener('input', (e) => {
-    state.subtitle = e.target.value;
-    renderPoster();
-  });
-  document.getElementById('tagInput').addEventListener('input', (e) => {
-    state.tag = e.target.value || 'SUNSET CITY';
-    renderPoster();
-  });
-  document.getElementById('photoSelect').addEventListener('change', (e) => {
-    state.panels[state.selected].photo = Number(e.target.value);
-    renderPoster();
-  });
-  document.getElementById('zoomInput').addEventListener('input', (e) => {
-    state.panels[state.selected].zoom = Number(e.target.value);
-    renderPoster();
-  });
-  document.getElementById('fillAll').addEventListener('click', () => {
-    const photo = state.panels[state.selected].photo;
-    state.panels.forEach((p) => { p.photo = photo; });
-    renderPoster();
-  });
-  document.getElementById('resetPanel').addEventListener('click', () => {
-    const p = state.panels[state.selected];
-    p.zoom = 1;
-    p.dxF = 0;
-    p.dyF = 0;
-    renderPoster();
-  });
-  document.getElementById('sizeSelect').addEventListener('change', (e) => {
-    setPreviewSize(e.target.value);
-  });
-  document.getElementById('loadSample').addEventListener('click', () => {
-    loadSamplePhoto('pier').catch(() => {});
-  });
-  document.getElementById('fileInput').addEventListener('change', async (e) => {
-    const files = [...e.target.files];
-    for (const file of files) {
-      const url = URL.createObjectURL(file);
-      try {
-        await addPhoto(file.name.replace(/\.[^.]+$/, ''), url);
-      } catch (err) {
-        URL.revokeObjectURL(url);
-      }
-    }
-    renderPoster();
-    e.target.value = '';
-  });
+});
 
-  // Drag the selected panel's photo to reposition it.
-  let drag = null;
-  posterEl.addEventListener('pointerdown', (e) => {
-    const panelDiv = e.target.closest('.panel');
-    if (!panelDiv) return;
-    const rect = panelDiv.getBoundingClientRect();
-    state.selected = Number(panelDiv.dataset.index);
-    renderPoster();
-    drag = { index: state.selected, startX: e.clientX, startY: e.clientY, rect };
-    posterEl.setPointerCapture(e.pointerId);
-  });
-  posterEl.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    const p = state.panels[drag.index];
-    p.dxF = clamp(p.dxF + (e.clientX - drag.startX) / drag.rect.width, -0.4, 0.4);
-    p.dyF = clamp(p.dyF + (e.clientY - drag.startY) / drag.rect.height, -0.4, 0.4);
-    drag.startX = e.clientX;
-    drag.startY = e.clientY;
-    renderPoster();
-  });
-  const endDrag = () => { drag = null; };
-  posterEl.addEventListener('pointerup', endDrag);
-  posterEl.addEventListener('pointercancel', endDrag);
-  window.addEventListener('resize', () => renderPoster());
-}
+/* ---------- demo mode for screenshots: ?demo=1 ---------- */
 
-function clamp(v, lo, hi) {
-  return Math.min(hi, Math.max(lo, v));
-}
-
-/* ---------- deterministic screenshot setup (?shot=...) ---------- */
-
-function sizePosterToViewport(sw, sh) {
-  const scale = Math.min(window.innerWidth / sw, window.innerHeight / sh);
-  const stage = document.querySelector('.stage-wrap');
-  stage.style.display = 'grid';
-  stage.style.placeItems = 'center';
-  posterEl.style.width = `${Math.round(sw * scale)}px`;
-  posterEl.style.height = `${Math.round(sh * scale)}px`;
-}
-
-async function applyShotParams() {
-  const params = new URLSearchParams(location.search);
-  const shot = params.get('shot');
-  if (!shot) return;
-  if (params.get('photo')) {
-    try { await loadSamplePhoto(params.get('photo')); } catch (e) { /* keep going */ }
+async function runDemo() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('layout')) applyLayout(params.get('layout'));
+  if (params.get('grade')) applyGrade(params.get('grade'));
+  if (params.get('caption')) {
+    captionInput.value = params.get('caption');
+    state.caption = params.get('caption');
+    captionEl.textContent = state.caption;
   }
-  if (params.get('layout')) setLayout(params.get('layout'));
-  if (params.get('grade')) setGrade(params.get('grade'));
-  if (params.get('caption')) state.title = params.get('caption');
-  if (params.get('subtitle')) state.subtitle = params.get('subtitle');
-  if (params.get('tag')) state.tag = params.get('tag');
-  if (params.get('size')) setPreviewSize(params.get('size'));
-  if (shot === 'cover') {
-    document.body.classList.add('cover-shot');
-    const [sw, sh] = (params.get('size') || '1080x1080').split('x').map(Number);
-    sizePosterToViewport(sw, sh);
+  if (params.get('demo') !== '1') return;
+  try {
+    const pier = await loadSamplePhoto('samples/pier.jpg', 'pier.jpg');
+    const boulevard = await loadSamplePhoto('samples/boulevard.jpg', 'boulevard.jpg');
+    if (state.layout === 'hero') applyLayout('grid');
+    addPhoto(pier);
+    addPhoto(boulevard);
+    assignPhoto(2, 0);
+    assignPhoto(3, 1);
+    setStatus('Demo cover loaded from the bundled sample photos.');
+  } catch (error) {
+    setStatus('Demo photos could not be loaded.');
   }
-  renderPoster();
 }
 
-/* ---------- boot ---------- */
+/* ---------- init ---------- */
 
-ensurePanels();
-wireControls();
-applyShotParams().then(() => renderPoster());
-renderPoster();
+buildButtonBar('layoutBar', Object.fromEntries(Object.entries(LAYOUTS).map(([k, v]) => [k, v.label])), state.layout, applyLayout);
+buildButtonBar('gradeBar', Object.fromEntries(Object.entries(GRADES).map(([k, v]) => [k, v.label])), state.grade, applyGrade);
+buildButtonBar('sizeBar', PREVIEW_SIZES, state.preview, applyPreviewSize);
+captionEl.style.fontSize = state.captionSize + 'px';
+buildPoster();
+runDemo();
 
-/* Test hook for the maker's own verification runs. */
-window.__coverMaker = { state, exportPNG, renderPoster, loadSamplePhoto, setLayout, setGrade, setPreviewSize };
+window.sunsetCity = { state, exportCover, LAYOUTS, GRADES, EXPORT_SIZES };
