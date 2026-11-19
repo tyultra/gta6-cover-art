@@ -1,73 +1,112 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sunset City Cover Maker</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff2e88'/%3E%3Ctext x='16' y='23' font-family='sans-serif' font-size='18' font-weight='bold' text-anchor='middle' fill='%23ffd23e'%3ESC%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff2e88'/%3E%3Ctext x='16' y='23' font-family='sans-serif' font-size='16' font-weight='bold' text-anchor='middle' fill='%23ffffff'%3ESC%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">SUNSET <span>CITY</span> <em>COVER MAKER</em></div>
-  <div class="tagline">Your photos, poster style. No upload, ever.</div>
+  <div class="brand">
+    <span class="brand-mark">SC</span>
+    <div>
+      <h1>Sunset City</h1>
+      <p>Cover Maker &mdash; turn your photos into a Vice City-style poster</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="btnSamples" type="button">Load sample photos</button>
+    <label class="file-btn">Add your photos
+      <input id="fileInput" type="file" accept="image/*" multiple hidden>
+    </label>
+  </div>
 </header>
 
-<main class="workspace">
-  <section class="controls" aria-label="Cover controls">
-    <div class="group">
-      <h2>1 &middot; Photos</h2>
-      <label class="file-btn" for="fileInput">Add photos from this device</label>
-      <input id="fileInput" type="file" accept="image/*" multiple hidden>
-      <p class="hint">Photos are read locally in your browser. Nothing leaves your machine.</p>
-      <div id="tray" class="tray"></div>
-      <p class="hint">Click a thumbnail to put it in the selected panel.</p>
-    </div>
-
-    <div class="group">
-      <h2>2 &middot; Layout</h2>
-      <div id="layoutBar" class="btn-row" role="group" aria-label="Poster layout"></div>
-    </div>
-
-    <div class="group">
-      <h2>3 &middot; Colour grade</h2>
-      <div id="gradeBar" class="btn-row" role="group" aria-label="Colour grade"></div>
-    </div>
-
-    <div class="group">
-      <h2>4 &middot; Caption</h2>
-      <input id="captionInput" type="text" value="SUNSET CITY" maxlength="40" autocomplete="off" spellcheck="false">
-      <label class="slider-row">Size
-        <input id="captionSize" type="range" min="44" max="150" value="88">
-        <span id="captionSizeValue">88</span>
-      </label>
-    </div>
-
-    <div class="group">
-      <h2>5 &middot; Preview size</h2>
-      <div id="sizeBar" class="btn-row" role="group" aria-label="Preview size"></div>
-    </div>
-
-    <div class="group">
-      <h2>6 &middot; Export PNG</h2>
-      <div class="btn-row wrap">
-        <button class="export-btn" data-export="1080x1080" type="button">1080 &times; 1080</button>
-        <button class="export-btn" data-export="1080x1350" type="button">1080 &times; 1350</button>
-        <button class="export-btn" data-export="1920x1080" type="button">1920 &times; 1080</button>
-      </div>
-      <p class="hint">Click a panel to select it. Drag inside a panel to move its photo, scroll to zoom.</p>
-    </div>
-  </section>
-
-  <section class="stage" aria-label="Live preview">
-    <div id="poster" class="poster grade-sunset" data-layout="hero" data-ratio="1-1">
+<main class="workbench">
+  <section class="stage-wrap">
+    <div id="stage" class="stage" data-format="square">
+      <div id="panels"></div>
       <div id="gradeOverlay" class="grade-overlay"></div>
-      <div id="caption" class="caption">SUNSET CITY</div>
+      <div id="captionOverlay" class="caption-overlay">
+        <div id="capTag" class="cap-tag">VICE CITY &bull; EST. 2026</div>
+        <div id="capTitle" class="cap-title">SUNSET CITY</div>
+      </div>
+      <div id="stageHint" class="stage-hint">Add photos or load the samples, then drag a panel to reframe its photo</div>
     </div>
-    <p id="status" class="status">Add a photo to begin.</p>
+    <p class="stage-note">Drag a photo to reposition it &middot; scroll over it to zoom &middot; double-click a panel to swap its photo</p>
   </section>
+
+  <aside class="controls">
+    <section class="ctl">
+      <h2>Photos</h2>
+      <div id="thumbs" class="thumbs"></div>
+      <p class="hint">Photos stay on your machine &mdash; nothing is uploaded.</p>
+    </section>
+
+    <section class="ctl">
+      <h2>Layout</h2>
+      <div class="btn-row" id="layoutRow">
+        <button data-layout="hero" type="button">Hero</button>
+        <button data-layout="split" type="button">Split</button>
+        <button data-layout="triptych" type="button">Triptych</button>
+        <button data-layout="grid" type="button" class="active">Grid</button>
+        <button data-layout="diagonal" type="button">Diagonal</button>
+      </div>
+    </section>
+
+    <section class="ctl">
+      <h2>Colour grade</h2>
+      <div class="btn-row" id="gradeRow">
+        <button data-grade="sunset" type="button" class="active">Sunset</button>
+        <button data-grade="neon" type="button">Neon</button>
+        <button data-grade="dark" type="button">Dark</button>
+      </div>
+    </section>
+
+    <section class="ctl">
+      <h2>Caption</h2>
+      <label>Title
+        <input id="titleInput" type="text" value="SUNSET CITY" maxlength="24">
+      </label>
+      <label>Tagline
+        <input id="tagInput" type="text" value="VICE CITY &bull; EST. 2026" maxlength="40">
+      </label>
+    </section>
+
+    <section class="ctl">
+      <h2>Canvas size</h2>
+      <div class="btn-row" id="formatRow">
+        <button data-format="square" type="button" class="active">Square 1:1</button>
+        <button data-format="portrait" type="button">Portrait 4:5</button>
+        <button data-format="wide" type="button">Wide 16:9</button>
+      </div>
+    </section>
+
+    <section class="ctl">
+      <h2>Selected panel</h2>
+      <div class="btn-row">
+        <button id="btnSwap" type="button">Swap photo</button>
+        <button id="btnZoomOut" type="button">Zoom &minus;</button>
+        <button id="btnZoomIn" type="button">Zoom +</button>
+        <button id="btnReset" type="button">Reset frame</button>
+      </div>
+    </section>
+
+    <section class="ctl export">
+      <h2>Export PNG</h2>
+      <div class="btn-row export-row">
+        <button id="expSquare" type="button">1080 &times; 1080</button>
+        <button id="expPortrait" type="button">1080 &times; 1350</button>
+        <button id="expWide" type="button">1920 &times; 1080</button>
+      </div>
+      <p class="hint">Exports render at full resolution from your current layout, grade and caption.</p>
+    </section>
+  </aside>
 </main>
 
+<canvas id="exportCanvas" hidden></canvas>
 <script src="maker.js"></script>
 </body>
 </html>
